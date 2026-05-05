@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Plus } from 'lucide-react';
 import { DayHeader } from './components/DayHeader';
 import { ExerciseCard } from './components/ExerciseCard';
 import { AddExerciseModal } from './components/AddExerciseModal';
-import { ProgressCharts } from './components/ProgressCharts';
 import { TabNav } from './components/TabNav';
 import { useStore } from './store/useStore';
 import { useDate } from './hooks/useDate';
+
+// Defer Recharts (~400 kB) until the Progress tab is opened
+const ProgressCharts = lazy(() =>
+  import('./components/ProgressCharts').then((m) => ({ default: m.ProgressCharts }))
+);
 
 type Tab = 'workout' | 'progress';
 
@@ -93,7 +97,15 @@ export default function App() {
         {/* Progress tab */}
         {tab === 'progress' && (
           <main className="flex-1 overflow-y-auto pb-28">
-            <ProgressCharts />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-16 text-white/30 text-sm">
+                  Loading charts…
+                </div>
+              }
+            >
+              <ProgressCharts />
+            </Suspense>
           </main>
         )}
       </div>

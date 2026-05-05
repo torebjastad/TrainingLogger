@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { addDays, format, isToday } from 'date-fns';
 
 export function useDate() {
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(() => new Date());
 
   const prev = () => setDate((d) => addDays(d, -1));
   const next = () => setDate((d) => addDays(d, 1));

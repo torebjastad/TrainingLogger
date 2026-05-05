@@ -10,21 +10,22 @@ interface Props {
   sets: LoggedSet[];
 }
 
+const CATEGORY_COLORS: Record<Exercise['category'], string> = {
+  pulling: 'bg-blue-500/20 text-blue-300',
+  pushing: 'bg-orange-500/20 text-orange-300',
+  core: 'bg-purple-500/20 text-purple-300',
+  legs: 'bg-green-500/20 text-green-300',
+  other: 'bg-white/10 text-white/50',
+};
+
 export function ExerciseCard({ exercise, dateKey, sets }: Props) {
-  const { logSet, removeSet } = useStore();
+  const logSet = useStore((s) => s.logSet);
+  const removeSet = useStore((s) => s.removeSet);
   const lastReps = sets.length > 0 ? sets[sets.length - 1].reps : exercise.defaultReps;
   const [reps, setReps] = useState(lastReps);
 
   const handleLog = () => {
     logSet(dateKey, exercise.id, reps);
-  };
-
-  const categoryColors: Record<Exercise['category'], string> = {
-    pulling: 'bg-blue-500/20 text-blue-300',
-    pushing: 'bg-orange-500/20 text-orange-300',
-    core: 'bg-purple-500/20 text-purple-300',
-    legs: 'bg-green-500/20 text-green-300',
-    other: 'bg-white/10 text-white/50',
   };
 
   return (
@@ -37,7 +38,7 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
               {exercise.name}
             </span>
             <span
-              className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${categoryColors[exercise.category]}`}
+              className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${CATEGORY_COLORS[exercise.category]}`}
             >
               {exercise.category}
             </span>

@@ -15,6 +15,11 @@ const DEFAULT_EXERCISES: Exercise[] = [
   { id: 'muscleups', name: 'Muscle-ups', category: 'pulling', isFavorite: false, defaultReps: 5 },
 ];
 
+const uid = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 interface Store {
   exercises: Exercise[];
   logs: DayLog[];
@@ -27,7 +32,6 @@ interface Store {
   logSet: (date: string, exerciseId: string, reps: number) => void;
   removeSet: (date: string, exerciseId: string, setId: string) => void;
   getLogsForDate: (date: string) => DayLog[];
-  getLogsForExercise: (exerciseId: string) => DayLog[];
 }
 
 export const useStore = create<Store>()(
@@ -48,7 +52,7 @@ export const useStore = create<Store>()(
           exercises: [
             ...s.exercises,
             {
-              id: `custom-${Date.now()}`,
+              id: `custom-${uid()}`,
               name,
               category,
               isFavorite: true,
@@ -59,7 +63,7 @@ export const useStore = create<Store>()(
 
       logSet: (date, exerciseId, reps) => {
         const newSet: LoggedSet = {
-          id: `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id: uid(),
           reps,
           timestamp: Date.now(),
         };
@@ -92,9 +96,6 @@ export const useStore = create<Store>()(
         })),
 
       getLogsForDate: (date) => get().logs.filter((l) => l.date === date),
-
-      getLogsForExercise: (exerciseId) =>
-        get().logs.filter((l) => l.exerciseId === exerciseId),
     }),
     { name: 'training-logger-v1' }
   )

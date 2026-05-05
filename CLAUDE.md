@@ -33,8 +33,6 @@ src/
     index.ts           # Exercise, LoggedSet, DayLog interfaces
   hooks/
     useDate.ts         # Current date navigation state
-  utils/
-    dateUtils.ts       # date-fns helpers
   App.tsx
   main.tsx
   index.css            # Tailwind @import + CSS vars

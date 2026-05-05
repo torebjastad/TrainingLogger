@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 interface Props {
   value: number;
@@ -10,7 +10,7 @@ interface Props {
 export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
   const startX = useRef<number | null>(null);
   const startVal = useRef(value);
-  const isDragging = useRef(false);
+  const [dragging, setDragging] = useState(false);
 
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
 
@@ -19,7 +19,6 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
       e.currentTarget.setPointerCapture(e.pointerId);
       startX.current = e.clientX;
       startVal.current = value;
-      isDragging.current = false;
     },
     [value]
   );
@@ -28,7 +27,7 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (startX.current === null) return;
       const delta = e.clientX - startX.current;
-      if (Math.abs(delta) > 3) isDragging.current = true;
+      if (!dragging && Math.abs(delta) > 3) setDragging(true);
       const step = Math.round(delta / 8);
       const next = clamp(startVal.current + step);
       if (next !== value) {
@@ -37,11 +36,12 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value, onChange, min, max]
+    [value, onChange, min, max, dragging]
   );
 
   const onPointerUp = useCallback(() => {
     startX.current = null;
+    setDragging(false);
   }, []);
 
   return (
@@ -72,9 +72,10 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
         aria-valuemax={max}
       >
         <div
-          className="min-w-[3rem] h-11 bg-white/10 border-y border-white/15
-                     flex items-center justify-center px-2 transition-colors
-                     hover:bg-white/15 active:bg-white/20"
+          className={`min-w-[3rem] h-11 border-y flex items-center justify-center px-2 transition-colors
+                      ${dragging
+                        ? 'bg-[#007AFF]/25 border-[#007AFF]/50'
+                        : 'bg-white/10 border-white/15 hover:bg-white/15 active:bg-white/20'}`}
         >
           <span className="text-xl font-semibold tabular-nums text-white tracking-tight">
             {value}
