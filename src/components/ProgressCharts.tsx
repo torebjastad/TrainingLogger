@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import { format, parseISO, eachDayOfInterval, subDays } from 'date-fns';
 import { useStore } from '../store/useStore';
+import { computeWeeklyStreak } from '../utils/streaks';
 
 const COLORS = ['#007AFF', '#30D158', '#FF9F0A', '#BF5AF2', '#FF375F'];
 
@@ -89,6 +90,10 @@ export function ProgressCharts() {
         }
       }
 
+      const streak = ex.goals?.setsPerWeek
+        ? computeWeeklyStreak(ex.id, ex.goals.setsPerWeek, logs)
+        : 0;
+
       return {
         exercise: ex,
         data: points,
@@ -97,6 +102,7 @@ export function ProgressCharts() {
         sessions,
         recentMedian,
         trend,
+        streak,
       };
     });
 
@@ -175,11 +181,16 @@ export function ProgressCharts() {
           {/* Per-exercise cards */}
           {perExerciseData
             .filter((d) => d.sessions > 0)
-            .map(({ exercise, data, color, pb, sessions, recentMedian, trend }) => (
+            .map(({ exercise, data, color, pb, sessions, recentMedian, trend, streak }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-white font-semibold text-sm">{exercise.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-semibold text-sm">{exercise.name}</p>
+                    {streak > 0 && (
+                      <span className="text-[11px] font-bold text-[#FF9F0A]">🔥{streak}</span>
+                    )}
+                  </div>
                   {data.length > 1 && (
                     <div className="flex items-center gap-3 text-[11px]">
                       <span className="flex items-center gap-1 text-white/50">
@@ -190,6 +201,12 @@ export function ProgressCharts() {
                         <span className="inline-block w-4 h-0.5 opacity-50" style={{ background: color }} />
                         Median
                       </span>
+                      {exercise.goals?.maxReps && (
+                        <span className="flex items-center gap-1 text-white/50">
+                          <span className="inline-block w-4 h-0.5" style={{ background: '#FFD60A' }} />
+                          Goal
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -210,28 +227,28 @@ export function ProgressCharts() {
                     <p className="text-white font-bold text-base leading-tight">{sessions}</p>
                     <p className="text-white/40 text-[10px] mt-0.5">Sessions</p>
                   </div>
-                  <div
-                    className={`rounded-xl px-2 py-2 text-center ${
-                      trend === '↑'
-                        ? 'bg-[#30D158]/15'
-                        : trend === '↓'
-                        ? 'bg-[#FF9F0A]/15'
-                        : 'bg-white/5'
-                    }`}
-                  >
-                    <p
-                      className={`font-bold text-base leading-tight ${
-                        trend === '↑'
-                          ? 'text-[#30D158]'
-                          : trend === '↓'
-                          ? 'text-[#FF9F0A]'
-                          : 'text-white/50'
+                  {/* Streak if goal set, else trend */}
+                  {exercise.goals?.setsPerWeek ? (
+                    <div className={`rounded-xl px-2 py-2 text-center ${streak > 0 ? 'bg-[#FF9F0A]/15' : 'bg-white/5'}`}>
+                      <p className={`font-bold text-base leading-tight ${streak > 0 ? 'text-[#FF9F0A]' : 'text-white/30'}`}>
+                        {streak > 0 ? streak : '—'}
+                      </p>
+                      <p className="text-white/40 text-[10px] mt-0.5">Streak</p>
+                    </div>
+                  ) : (
+                    <div
+                      className={`rounded-xl px-2 py-2 text-center ${
+                        trend === '↑' ? 'bg-[#30D158]/15' : trend === '↓' ? 'bg-[#FF9F0A]/15' : 'bg-white/5'
                       }`}
                     >
-                      {trend}
-                    </p>
-                    <p className="text-white/40 text-[10px] mt-0.5">Trend</p>
-                  </div>
+                      <p className={`font-bold text-base leading-tight ${
+                        trend === '↑' ? 'text-[#30D158]' : trend === '↓' ? 'text-[#FF9F0A]' : 'text-white/50'
+                      }`}>
+                        {trend}
+                      </p>
+                      <p className="text-white/40 text-[10px] mt-0.5">Trend</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Chart — only when 2+ data points */}
@@ -242,6 +259,15 @@ export function ProgressCharts() {
                       <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                       <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                       <Tooltip content={<CustomTooltip />} />
+                      {exercise.goals?.maxReps && (
+                        <ReferenceLine
+                          y={exercise.goals.maxReps}
+                          stroke="#FFD60A"
+                          strokeWidth={1.5}
+                          strokeDasharray="6 3"
+                          strokeOpacity={0.8}
+                        />
+                      )}
                       <Line
                         type="monotone"
                         dataKey="max"

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Exercise, DayLog, LoggedSet } from '../types';
+import type { Exercise, ExerciseGoals, DayLog, LoggedSet } from '../types';
 
 const DEFAULT_EXERCISES: Exercise[] = [
   { id: 'hangups', name: 'Hang-ups', category: 'pulling', isFavorite: true, defaultReps: 10 },
@@ -27,6 +27,7 @@ interface Store {
   // Exercise management
   toggleFavorite: (id: string) => void;
   addExercise: (name: string, category: Exercise['category']) => void;
+  updateGoals: (id: string, goals: ExerciseGoals) => void;
 
   // Logging
   logSet: (date: string, exerciseId: string, reps: number) => void;
@@ -61,6 +62,13 @@ export const useStore = create<Store>()(
               defaultReps: 10,
             },
           ],
+        })),
+
+      updateGoals: (id, goals) =>
+        set((s) => ({
+          exercises: s.exercises.map((e) =>
+            e.id === id ? { ...e, goals } : e
+          ),
         })),
 
       logSet: (date, exerciseId, reps) => {

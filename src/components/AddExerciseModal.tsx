@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Star, Trash2 } from 'lucide-react';
+import { X, Plus, Star, Trash2, Target } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import type { Exercise } from '../types';
 
@@ -15,25 +15,82 @@ const CATEGORIES: { value: Exercise['category']; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+function Stepper({
+  value,
+  onChange,
+  min = 0,
+  max = 999,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  return (
+    <div className="flex items-center gap-0.5">
+      <button
+        onClick={() => onChange(clamp(value - 1))}
+        className="w-9 h-9 rounded-l-xl bg-white/10 hover:bg-white/20 text-white/60
+                   hover:text-white flex items-center justify-center text-xl leading-none"
+        aria-label="decrease"
+      >−</button>
+      <div className="h-9 min-w-[3.5rem] px-3 bg-white/10 border-y border-white/10
+                      flex items-center justify-center">
+        <span className="text-white font-semibold text-sm tabular-nums">
+          {value === 0 ? '—' : value}
+        </span>
+      </div>
+      <button
+        onClick={() => onChange(clamp(value + 1))}
+        className="w-9 h-9 rounded-r-xl bg-white/10 hover:bg-white/20 text-white/60
+                   hover:text-white flex items-center justify-center text-xl leading-none"
+        aria-label="increase"
+      >+</button>
+    </div>
+  );
+}
+
 export function AddExerciseModal({ onClose }: Props) {
-  const { exercises, toggleFavorite, addExercise, deleteExerciseLogs, logs } = useStore();
+  const { exercises, toggleFavorite, addExercise, deleteExerciseLogs, updateGoals, logs } =
+    useStore();
   const [newName, setNewName] = useState('');
   const [newCat, setNewCat] = useState<Exercise['category']>('other');
   const [showNew, setShowNew] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Exercise | null>(null);
+  const [pendingGoals, setPendingGoals] = useState<Exercise | null>(null);
+  const [goalMaxReps, setGoalMaxReps] = useState(0);
+  const [goalSetsPerWeek, setGoalSetsPerWeek] = useState(0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (pendingRemove) setPendingRemove(null);
+        if (pendingGoals) setPendingGoals(null);
+        else if (pendingRemove) setPendingRemove(null);
         else onClose();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, pendingRemove]);
+  }, [onClose, pendingRemove, pendingGoals]);
+
+  const openGoals = (ex: Exercise) => {
+    setGoalMaxReps(ex.goals?.maxReps ?? 0);
+    setGoalSetsPerWeek(ex.goals?.setsPerWeek ?? 0);
+    setPendingGoals(ex);
+  };
+
+  const saveGoals = () => {
+    if (!pendingGoals) return;
+    updateGoals(pendingGoals.id, {
+      maxReps: goalMaxReps > 0 ? goalMaxReps : undefined,
+      setsPerWeek: goalSetsPerWeek > 0 ? goalSetsPerWeek : undefined,
+    });
+    setPendingGoals(null);
+  };
 
   const nonFavorites = exercises.filter((e) => !e.isFavorite);
+  const favorites = exercises.filter((e) => e.isFavorite);
 
   const handleAdd = () => {
     const trimmed = newName.trim();
@@ -69,7 +126,6 @@ export function AddExerciseModal({ onClose }: Props) {
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-[#1c1c1e] rounded-t-3xl pt-5 pb-8 px-4 z-10 max-h-[80vh] overflow-y-auto">
-        {/* Handle */}
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
 
         <div className="flex items-center justify-between mb-4">
@@ -165,27 +221,48 @@ export function AddExerciseModal({ onClose }: Props) {
           )}
         </div>
 
-        {/* Currently favorited — option to remove */}
-        {exercises.filter((e) => e.isFavorite).length > 0 && (
+        {/* Favorites — remove or set goals */}
+        {favorites.length > 0 && (
           <div className="border-t border-white/10 pt-4 mt-4">
             <p className="text-white/40 text-xs uppercase tracking-wider font-medium px-1 mb-3">
               Your favorites
             </p>
             <div className="space-y-2">
-              {exercises
-                .filter((e) => e.isFavorite)
-                .map((ex) => (
+              {favorites.map((ex) => (
+                <div
+                  key={ex.id}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5"
+                >
                   <button
-                    key={ex.id}
                     onClick={() => handleRemoveFavorite(ex)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl
-                               bg-white/5 hover:bg-white/10 transition-colors text-left"
+                    className="w-8 h-8 flex items-center justify-center shrink-0
+                               hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label={`Remove ${ex.name} from favorites`}
                   >
                     <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                    <span className="text-white font-medium text-sm flex-1">{ex.name}</span>
-                    <span className="text-[11px] text-white/30">tap to remove</span>
                   </button>
-                ))}
+                  <span className="text-white font-medium text-sm flex-1 truncate">{ex.name}</span>
+                  {(ex.goals?.maxReps || ex.goals?.setsPerWeek) && (
+                    <span className="text-[10px] text-white/30 shrink-0">
+                      {[
+                        ex.goals.maxReps && `${ex.goals.maxReps} rep goal`,
+                        ex.goals.setsPerWeek && `${ex.goals.setsPerWeek}×/wk`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => openGoals(ex)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg
+                               bg-white/8 hover:bg-white/15 transition-colors shrink-0"
+                    aria-label={`Set goals for ${ex.name}`}
+                  >
+                    <Target size={12} className="text-[#007AFF]" />
+                    <span className="text-[#007AFF] text-[11px] font-medium">Goals</span>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -194,29 +271,19 @@ export function AddExerciseModal({ onClose }: Props) {
       {/* ── Remove confirmation sheet ── */}
       {pendingRemove && (
         <div className="absolute inset-0 z-20 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setPendingRemove(null)}
-          />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPendingRemove(null)} />
           <div className="relative w-full max-w-md bg-[#2c2c2e] rounded-t-3xl pt-5 pb-8 px-4 z-30">
             <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
-
             <div className="flex items-center gap-3 mb-2 px-1">
               <div className="w-9 h-9 rounded-xl bg-[#FF375F]/15 flex items-center justify-center shrink-0">
                 <Star size={18} className="text-[#FF375F]" />
               </div>
               <div>
-                <p className="text-white font-semibold text-[15px]">
-                  Remove {pendingRemove.name}?
-                </p>
-                <p className="text-white/40 text-xs mt-0.5">
-                  You have training history for this exercise.
-                </p>
+                <p className="text-white font-semibold text-[15px]">Remove {pendingRemove.name}?</p>
+                <p className="text-white/40 text-xs mt-0.5">You have training history for this exercise.</p>
               </div>
             </div>
-
             <div className="space-y-2 mt-5">
-              {/* Keep data */}
               <button
                 onClick={() => confirmRemove(false)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl
@@ -224,13 +291,9 @@ export function AddExerciseModal({ onClose }: Props) {
               >
                 <div className="flex-1">
                   <p className="text-white font-semibold text-sm">Remove from favorites</p>
-                  <p className="text-white/40 text-xs mt-0.5">
-                    Keep training data — history reappears if re-added
-                  </p>
+                  <p className="text-white/40 text-xs mt-0.5">Keep training data — history reappears if re-added</p>
                 </div>
               </button>
-
-              {/* Delete data */}
               <button
                 onClick={() => confirmRemove(true)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl
@@ -240,19 +303,66 @@ export function AddExerciseModal({ onClose }: Props) {
                 <Trash2 size={16} className="text-[#FF375F] shrink-0" />
                 <div className="flex-1">
                   <p className="text-[#FF375F] font-semibold text-sm">Remove and delete all data</p>
-                  <p className="text-[#FF375F]/50 text-xs mt-0.5">
-                    Permanently deletes all logged sets — cannot be undone
-                  </p>
+                  <p className="text-[#FF375F]/50 text-xs mt-0.5">Permanently deletes all logged sets — cannot be undone</p>
                 </div>
               </button>
-
-              {/* Cancel */}
               <button
                 onClick={() => setPendingRemove(null)}
                 className="w-full py-3.5 rounded-2xl bg-white/5 text-white/50
                            hover:bg-white/8 transition-colors text-sm font-medium mt-1"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Goal editor sheet ── */}
+      {pendingGoals && (
+        <div className="absolute inset-0 z-20 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPendingGoals(null)} />
+          <div className="relative w-full max-w-md bg-[#2c2c2e] rounded-t-3xl pt-5 pb-8 px-4 z-30">
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+            <div className="flex items-center gap-3 mb-6 px-1">
+              <div className="w-9 h-9 rounded-xl bg-[#007AFF]/15 flex items-center justify-center shrink-0">
+                <Target size={18} className="text-[#007AFF]" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-[15px]">{pendingGoals.name}</p>
+                <p className="text-white/40 text-xs mt-0.5">Set your targets</p>
+              </div>
+            </div>
+
+            <div className="space-y-5 px-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white text-sm font-medium">Max reps goal</p>
+                  <p className="text-white/40 text-xs mt-0.5">Golden line on progress chart</p>
+                </div>
+                <Stepper value={goalMaxReps} onChange={setGoalMaxReps} min={0} max={999} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white text-sm font-medium">Sets per week</p>
+                  <p className="text-white/40 text-xs mt-0.5">Activates streak counter</p>
+                </div>
+                <Stepper value={goalSetsPerWeek} onChange={setGoalSetsPerWeek} min={0} max={99} />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-7">
+              <button
+                onClick={() => setPendingGoals(null)}
+                className="flex-1 py-3 rounded-2xl bg-white/8 text-white/60 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveGoals}
+                className="flex-1 py-3 rounded-2xl bg-[#007AFF] text-white text-sm font-semibold"
+              >
+                Save
               </button>
             </div>
           </div>

@@ -2,12 +2,14 @@ import { useState, useMemo } from 'react';
 import { Check, X, Trash2 } from 'lucide-react';
 import { NumberScrubber } from './NumberScrubber';
 import { useStore } from '../store/useStore';
+import { computeWeeklyStreak, currentWeekSetCount } from '../utils/streaks';
 import type { Exercise, LoggedSet } from '../types';
 
 interface Props {
   exercise: Exercise;
   dateKey: string;
   sets: LoggedSet[];
+  onGoalReached?: (info: { exerciseName: string; streak: number }) => void;
 }
 
 const CATEGORY_COLORS: Record<Exercise['category'], string> = {
@@ -26,14 +28,12 @@ function median(reps: number[]): number {
     : sorted[mid];
 }
 
-export function ExerciseCard({ exercise, dateKey, sets }: Props) {
+export function ExerciseCard({ exercise, dateKey, sets, onGoalReached }: Props) {
   const logSet = useStore((s) => s.logSet);
   const updateSet = useStore((s) => s.updateSet);
   const removeSet = useStore((s) => s.removeSet);
   const allLogs = useStore((s) => s.logs);
 
-  // When no sets logged today, seed the scrubber with the median from the
-  // most recent previous session — so consecutive days need minimal adjustment.
   const seedReps = useMemo(() => {
     if (sets.length > 0) return sets[sets.length - 1].reps;
     const previous = allLogs
@@ -42,13 +42,29 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
     if (previous.length === 0) return exercise.defaultReps;
     return median(previous[0].sets.map((s) => s.reps));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // ^ intentionally runs only on mount; key={ex.id-dateKey} in App remounts on day change
+
+  const streak = useMemo(() => {
+    if (!exercise.goals?.setsPerWeek) return 0;
+    return computeWeeklyStreak(exercise.id, exercise.goals.setsPerWeek, allLogs);
+  }, [exercise.id, exercise.goals?.setsPerWeek, allLogs]);
 
   const [reps, setReps] = useState(seedReps);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editReps, setEditReps] = useState(0);
 
-  const handleLog = () => logSet(dateKey, exercise.id, reps);
+  const handleLog = () => {
+    const goal = exercise.goals?.setsPerWeek;
+    if (goal && onGoalReached) {
+      const before = currentWeekSetCount(exercise.id, allLogs);
+      if (before < goal && before + 1 >= goal) {
+        logSet(dateKey, exercise.id, reps);
+        const newStreak = computeWeeklyStreak(exercise.id, goal, useStore.getState().logs);
+        onGoalReached({ exerciseName: exercise.name, streak: newStreak });
+        return;
+      }
+    }
+    logSet(dateKey, exercise.id, reps);
+  };
 
   const startEdit = (setId: string, currentReps: number) => {
     setEditingId(setId);
@@ -76,6 +92,9 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
             >
               {exercise.category}
             </span>
+            {streak > 0 && (
+              <span className="text-[11px] font-bold text-[#FF9F0A]">🔥{streak}</span>
+            )}
           </div>
           {sets.length > 0 && (
             <p className="text-white/40 text-[11px] mt-1">

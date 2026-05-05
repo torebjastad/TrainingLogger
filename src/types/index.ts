@@ -1,9 +1,15 @@
+export interface ExerciseGoals {
+  maxReps?: number;
+  setsPerWeek?: number;
+}
+
 export interface Exercise {
   id: string;
   name: string;
   category: 'pulling' | 'pushing' | 'core' | 'legs' | 'other';
   isFavorite: boolean;
   defaultReps: number;
+  goals?: ExerciseGoals;
 }
 
 export interface LoggedSet {

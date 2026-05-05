@@ -1,8 +1,9 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { DayHeader } from './components/DayHeader';
 import { ExerciseCard } from './components/ExerciseCard';
 import { AddExerciseModal } from './components/AddExerciseModal';
+import { GoalSplash } from './components/GoalSplash';
 import { TabNav } from './components/TabNav';
 import { useStore } from './store/useStore';
 import { useDate } from './hooks/useDate';
@@ -19,6 +20,11 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('workout');
   const [slideDir, setSlideDir] = useState<SlideDir>(null);
   const [showModal, setShowModal] = useState(false);
+  const [splash, setSplash] = useState<{ exerciseName: string; streak: number } | null>(null);
+  const handleGoalReached = useCallback(
+    (info: { exerciseName: string; streak: number }) => setSplash(info),
+    []
+  );
   const { exercises, getLogsForDate } = useStore();
   const { dateKey, displayDate, isCurrentDay, prev, next, goToday } = useDate();
 
@@ -90,6 +96,7 @@ export default function App() {
                       exercise={ex}
                       dateKey={dateKey}
                       sets={log?.sets ?? []}
+                      onGoalReached={handleGoalReached}
                     />
                   );
                 })}
@@ -129,6 +136,13 @@ export default function App() {
       <TabNav active={tab} onChange={switchTab} />
 
       {showModal && <AddExerciseModal onClose={() => setShowModal(false)} />}
+      {splash && (
+        <GoalSplash
+          exerciseName={splash.exerciseName}
+          streak={splash.streak}
+          onDismiss={() => setSplash(null)}
+        />
+      )}
     </div>
   );
 }
