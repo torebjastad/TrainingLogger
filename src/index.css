@@ -13,6 +13,12 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* Prevent text auto-resize on iOS landscape rotation */
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Safe area support (notched phones) */

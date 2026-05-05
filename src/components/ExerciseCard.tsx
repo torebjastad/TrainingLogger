@@ -30,27 +30,27 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
   return (
     <div className="bg-[#1c1c1e] rounded-2xl overflow-hidden">
       {/* Exercise header row */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+      <div className="flex items-center gap-2 px-3 py-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-white font-semibold text-base truncate">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-white font-semibold text-[15px] leading-tight truncate">
               {exercise.name}
             </span>
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${categoryColors[exercise.category]}`}
+              className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${categoryColors[exercise.category]}`}
             >
               {exercise.category}
             </span>
           </div>
           {sets.length > 0 && (
-            <p className="text-white/40 text-xs mt-0.5">
+            <p className="text-white/40 text-[11px] mt-1">
               {sets.length} set{sets.length !== 1 ? 's' : ''} logged
             </p>
           )}
         </div>
 
         {/* Scrubber + confirm */}
-        <div className="flex items-center gap-2 pb-4">
+        <div className="flex items-center gap-1.5 shrink-0">
           <NumberScrubber value={reps} onChange={setReps} />
           <button
             onClick={handleLog}

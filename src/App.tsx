@@ -20,16 +20,10 @@ export default function App() {
   const dayLogs = getLogsForDate(dateKey);
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white flex flex-col">
+    <div className="min-h-dvh bg-[#0f0f0f] text-white flex flex-col">
       <div className="flex-1 flex flex-col max-w-md mx-auto w-full">
         {/* App header */}
         <header className="pt-safe">
-          <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-            <h1 className="text-white/20 text-xs font-bold uppercase tracking-[0.2em]">
-              TrainingLogger
-            </h1>
-          </div>
-
           {tab === 'workout' && (
             <DayHeader
               displayDate={displayDate}
@@ -41,8 +35,8 @@ export default function App() {
           )}
 
           {tab === 'progress' && (
-            <div className="px-4 py-3">
-              <h2 className="text-lg font-semibold text-white">Progress</h2>
+            <div className="px-4 pt-5 pb-3">
+              <h2 className="text-2xl font-bold text-white tracking-tight">Progress</h2>
               <p className="text-white/40 text-sm">Your training history</p>
             </div>
           )}

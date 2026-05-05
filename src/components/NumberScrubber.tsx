@@ -46,11 +46,11 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
 
   return (
     <div
-      className="flex items-center gap-1 select-none"
+      className="flex items-center gap-0.5 select-none"
       style={{ touchAction: 'none' }}
     >
       <button
-        className="w-8 h-8 rounded-full flex items-center justify-center text-white/60
+        className="w-7 h-11 rounded-l-xl flex items-center justify-center text-white/50
                    hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors text-xl leading-none"
         onClick={() => onChange(clamp(value - 1))}
         aria-label="decrease"
@@ -58,9 +58,9 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
         −
       </button>
 
-      {/* Drag target */}
+      {/* Drag target — primary interaction */}
       <div
-        className="relative flex items-center justify-center cursor-ew-resize"
+        className="relative flex items-center justify-center cursor-ew-resize touch-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -72,21 +72,18 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
         aria-valuemax={max}
       >
         <div
-          className="min-w-[3.5rem] h-11 rounded-xl bg-white/10 border border-white/15
-                     flex items-center justify-center px-3 transition-colors
+          className="min-w-[3rem] h-11 bg-white/10 border-y border-white/15
+                     flex items-center justify-center px-2 transition-colors
                      hover:bg-white/15 active:bg-white/20"
         >
-          <span className="text-2xl font-semibold tabular-nums text-white tracking-tight">
+          <span className="text-xl font-semibold tabular-nums text-white tracking-tight">
             {value}
           </span>
         </div>
-        <span className="absolute -bottom-4 text-[10px] text-white/30 font-medium tracking-wide">
-          REPS
-        </span>
       </div>
 
       <button
-        className="w-8 h-8 rounded-full flex items-center justify-center text-white/60
+        className="w-7 h-11 rounded-r-xl flex items-center justify-center text-white/50
                    hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors text-xl leading-none"
         onClick={() => onChange(clamp(value + 1))}
         aria-label="increase"
