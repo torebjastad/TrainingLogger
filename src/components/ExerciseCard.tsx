@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Trash2 } from 'lucide-react';
 import { NumberScrubber } from './NumberScrubber';
 import { useStore } from '../store/useStore';
 import type { Exercise, LoggedSet } from '../types';
@@ -20,13 +20,30 @@ const CATEGORY_COLORS: Record<Exercise['category'], string> = {
 
 export function ExerciseCard({ exercise, dateKey, sets }: Props) {
   const logSet = useStore((s) => s.logSet);
+  const updateSet = useStore((s) => s.updateSet);
   const removeSet = useStore((s) => s.removeSet);
   const lastReps = sets.length > 0 ? sets[sets.length - 1].reps : exercise.defaultReps;
   const [reps, setReps] = useState(lastReps);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editReps, setEditReps] = useState(0);
 
   const handleLog = () => {
     logSet(dateKey, exercise.id, reps);
   };
+
+  const startEdit = (setId: string, currentReps: number) => {
+    setEditingId(setId);
+    setEditReps(currentReps);
+  };
+
+  const confirmEdit = (setId: string) => {
+    updateSet(dateKey, exercise.id, setId, editReps);
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const clamp = (n: number) => Math.min(999, Math.max(1, n));
 
   return (
     <div className="bg-[#1c1c1e] rounded-2xl overflow-hidden">
@@ -66,25 +83,81 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
 
       {/* Logged sets chips */}
       {sets.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-4 pb-4">
-          {sets.map((set, i) => (
-            <div
-              key={set.id}
-              className="group flex items-center gap-1 bg-white/8 hover:bg-white/12 transition-colors
-                         rounded-lg px-2.5 py-1.5"
-            >
-              <span className="text-white/40 text-xs">Set {i + 1}</span>
-              <span className="text-white font-semibold text-sm">{set.reps}</span>
-              <button
-                onClick={() => removeSet(dateKey, exercise.id, set.id)}
-                className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity
-                           text-white/30 hover:text-white/70"
-                aria-label={`Remove set ${i + 1}`}
+        <div className="flex flex-wrap gap-2 px-3 pb-3">
+          {sets.map((set, i) =>
+            editingId === set.id ? (
+              /* ── Expanded edit chip ── */
+              <div
+                key={set.id}
+                className="basis-full flex items-center gap-2 bg-white/10 border border-white/20
+                           rounded-xl px-3 py-2"
               >
-                <X size={12} />
+                <span className="text-white/40 text-xs w-10 shrink-0">Set {i + 1}</span>
+
+                {/* Mini +/− controls */}
+                <div className="flex items-center gap-0.5 flex-1">
+                  <button
+                    onClick={() => setEditReps(clamp(editReps - 1))}
+                    className="w-7 h-7 rounded-l-lg bg-white/10 hover:bg-white/20 text-white/70
+                               hover:text-white flex items-center justify-center text-lg leading-none"
+                    aria-label="decrease"
+                  >−</button>
+                  <div className="h-7 px-3 bg-white/10 flex items-center justify-center
+                                  border-y border-white/10">
+                    <span className="text-white font-semibold text-sm tabular-nums">{editReps}</span>
+                  </div>
+                  <button
+                    onClick={() => setEditReps(clamp(editReps + 1))}
+                    className="w-7 h-7 rounded-r-lg bg-white/10 hover:bg-white/20 text-white/70
+                               hover:text-white flex items-center justify-center text-lg leading-none"
+                    aria-label="increase"
+                  >+</button>
+                </div>
+
+                {/* Save */}
+                <button
+                  onClick={() => confirmEdit(set.id)}
+                  className="w-8 h-8 rounded-full bg-[#30D158] flex items-center justify-center
+                             active:scale-95 transition-transform"
+                  aria-label="Save"
+                >
+                  <Check size={15} strokeWidth={2.5} className="text-black" />
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={() => { removeSet(dateKey, exercise.id, set.id); setEditingId(null); }}
+                  className="w-8 h-8 rounded-full bg-[#FF375F]/20 flex items-center justify-center
+                             hover:bg-[#FF375F]/40 active:scale-95 transition-all"
+                  aria-label="Delete set"
+                >
+                  <Trash2 size={14} className="text-[#FF375F]" />
+                </button>
+
+                {/* Cancel */}
+                <button
+                  onClick={cancelEdit}
+                  className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center
+                             hover:bg-white/15 active:scale-95 transition-all"
+                  aria-label="Cancel"
+                >
+                  <X size={14} className="text-white/50" />
+                </button>
+              </div>
+            ) : (
+              /* ── Normal chip — tap to edit ── */
+              <button
+                key={set.id}
+                onClick={() => startEdit(set.id, set.reps)}
+                className="flex items-center gap-1.5 bg-white/8 hover:bg-white/12 active:bg-white/18
+                           transition-colors rounded-lg px-2.5 py-1.5"
+                aria-label={`Edit set ${i + 1}: ${set.reps} reps`}
+              >
+                <span className="text-white/40 text-xs">Set {i + 1}</span>
+                <span className="text-white font-semibold text-sm">{set.reps}</span>
               </button>
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </div>

@@ -30,6 +30,7 @@ interface Store {
 
   // Logging
   logSet: (date: string, exerciseId: string, reps: number) => void;
+  updateSet: (date: string, exerciseId: string, setId: string, reps: number) => void;
   removeSet: (date: string, exerciseId: string, setId: string) => void;
   getLogsForDate: (date: string) => DayLog[];
 }
@@ -91,6 +92,20 @@ export const useStore = create<Store>()(
           logs: s.logs.map((l) =>
             l.date === date && l.exerciseId === exerciseId
               ? { ...l, sets: l.sets.filter((set) => set.id !== setId) }
+              : l
+          ),
+        })),
+
+      updateSet: (date, exerciseId, setId, reps) =>
+        set((s) => ({
+          logs: s.logs.map((l) =>
+            l.date === date && l.exerciseId === exerciseId
+              ? {
+                  ...l,
+                  sets: l.sets.map((set) =>
+                    set.id === setId ? { ...set, reps } : set
+                  ),
+                }
               : l
           ),
         })),
