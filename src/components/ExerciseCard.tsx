@@ -54,16 +54,19 @@ export function ExerciseCard({ exercise, dateKey, sets, onGoalReached }: Props) 
 
   const handleLog = () => {
     const goal = exercise.goals?.setsPerWeek;
-    if (goal && onGoalReached) {
-      const before = currentWeekSetCount(exercise.id, allLogs);
-      if (before < goal && before + 1 >= goal) {
-        logSet(dateKey, exercise.id, reps);
-        const newStreak = computeWeeklyStreak(exercise.id, goal, useStore.getState().logs);
+    // Read from live store state to avoid stale React closure
+    const beforeCount = goal ? currentWeekSetCount(exercise.id, useStore.getState().logs) : 0;
+
+    logSet(dateKey, exercise.id, reps);
+
+    if (goal && onGoalReached && beforeCount < goal) {
+      const freshLogs = useStore.getState().logs;
+      const afterCount = currentWeekSetCount(exercise.id, freshLogs);
+      if (afterCount >= goal) {
+        const newStreak = computeWeeklyStreak(exercise.id, goal, freshLogs);
         onGoalReached({ exerciseName: exercise.name, streak: newStreak });
-        return;
       }
     }
-    logSet(dateKey, exercise.id, reps);
   };
 
   const startEdit = (setId: string, currentReps: number) => {

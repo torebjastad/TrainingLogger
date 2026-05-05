@@ -257,7 +257,15 @@ export function ProgressCharts() {
                     <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                      <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <YAxis
+                        tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                        domain={exercise.goals?.maxReps
+                          ? [0, Math.ceil(Math.max(
+                              ...data.flatMap((d) => [d.max, d.median]),
+                              exercise.goals.maxReps * 1.15
+                            ))]
+                          : [0, 'auto']}
+                      />
                       <Tooltip content={<CustomTooltip />} />
                       {exercise.goals?.maxReps && (
                         <ReferenceLine
