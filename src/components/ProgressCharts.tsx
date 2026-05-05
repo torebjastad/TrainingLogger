@@ -62,12 +62,19 @@ export function ProgressCharts() {
         .map((day) => {
           const key = format(day, 'yyyy-MM-dd');
           const dayLog = exLogs.find((l) => l.date === key);
-          const totalReps = dayLog
-            ? dayLog.sets.reduce((s, set) => s + set.reps, 0)
-            : null;
-          return { date: format(day, 'MMM d'), reps: totalReps };
+          if (!dayLog || dayLog.sets.length === 0) return null;
+
+          const sorted = [...dayLog.sets.map((s) => s.reps)].sort((a, b) => a - b);
+          const mid = Math.floor(sorted.length / 2);
+          const median =
+            sorted.length % 2 === 0
+              ? Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10
+              : sorted[mid];
+          const max = sorted[sorted.length - 1];
+
+          return { date: format(day, 'MMM d'), median, max };
         })
-        .filter((p) => p.reps !== null);
+        .filter((p): p is { date: string; median: number; max: number } => p !== null);
       return { exercise: ex, data: points, color: COLORS[i % COLORS.length] };
     });
 
@@ -150,20 +157,44 @@ export function ProgressCharts() {
             .filter((d) => d.data.length > 1)
             .map(({ exercise, data, color }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
-                <p className="text-white font-semibold mb-4 text-sm">{exercise.name} — reps over time</p>
-                <ResponsiveContainer width="100%" height={140}>
-                  <LineChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-white font-semibold text-sm">{exercise.name}</p>
+                  <div className="flex items-center gap-3 text-[11px]">
+                    <span className="flex items-center gap-1 text-white/50">
+                      <span className="inline-block w-4 h-0.5" style={{ background: color }} />
+                      Max
+                    </span>
+                    <span className="flex items-center gap-1 text-white/50">
+                      <span className="inline-block w-4 h-0.5 opacity-50" style={{ background: color }} />
+                      Median
+                    </span>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={150}>
+                  <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                     <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                     <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Line
                       type="monotone"
-                      dataKey="reps"
+                      dataKey="max"
+                      name="Max"
                       stroke={color}
                       strokeWidth={2}
                       dot={{ fill: color, r: 3 }}
                       activeDot={{ r: 5 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="median"
+                      name="Median"
+                      stroke={color}
+                      strokeWidth={1.5}
+                      strokeOpacity={0.5}
+                      strokeDasharray="5 3"
+                      dot={{ fill: color, r: 2, opacity: 0.5 }}
+                      activeDot={{ r: 4 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
