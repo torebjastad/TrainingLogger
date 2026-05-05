@@ -48,6 +48,7 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
     <div
       className="flex items-center gap-0.5 select-none"
       style={{ touchAction: 'none' }}
+      data-no-swipe="true"
     >
       <button
         className="w-7 h-11 rounded-l-xl flex items-center justify-center text-white/50

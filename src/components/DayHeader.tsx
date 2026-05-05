@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
@@ -9,8 +10,28 @@ interface Props {
 }
 
 export function DayHeader({ displayDate, isCurrentDay, onPrev, onNext, onToday }: Props) {
+  const swipeStartX = useRef<number | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    swipeStartX.current = e.clientX;
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (swipeStartX.current === null) return;
+    const dx = e.clientX - swipeStartX.current;
+    swipeStartX.current = null;
+    if (Math.abs(dx) < 40) return;           // too short — treat as tap
+    if (dx < 0) onNext();                     // swipe left  → forward in time
+    else onPrev();                            // swipe right → back in time
+  };
+
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div
+      className="flex items-center justify-between px-4 py-3 select-none"
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => { swipeStartX.current = null; }}
+    >
       <button
         onClick={onPrev}
         className="w-10 h-10 flex items-center justify-center rounded-full
