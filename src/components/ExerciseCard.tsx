@@ -10,8 +10,17 @@ interface Props {
   sets: LoggedSet[];
 }
 
+const CATEGORY_COLORS: Record<Exercise['category'], string> = {
+  pulling: 'bg-blue-500/20 text-blue-300',
+  pushing: 'bg-orange-500/20 text-orange-300',
+  core: 'bg-purple-500/20 text-purple-300',
+  legs: 'bg-green-500/20 text-green-300',
+  other: 'bg-white/10 text-white/50',
+};
+
 export function ExerciseCard({ exercise, dateKey, sets }: Props) {
-  const { logSet, removeSet } = useStore();
+  const logSet = useStore((s) => s.logSet);
+  const removeSet = useStore((s) => s.removeSet);
   const lastReps = sets.length > 0 ? sets[sets.length - 1].reps : exercise.defaultReps;
   const [reps, setReps] = useState(lastReps);
 
@@ -19,38 +28,30 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
     logSet(dateKey, exercise.id, reps);
   };
 
-  const categoryColors: Record<Exercise['category'], string> = {
-    pulling: 'bg-blue-500/20 text-blue-300',
-    pushing: 'bg-orange-500/20 text-orange-300',
-    core: 'bg-purple-500/20 text-purple-300',
-    legs: 'bg-green-500/20 text-green-300',
-    other: 'bg-white/10 text-white/50',
-  };
-
   return (
     <div className="bg-[#1c1c1e] rounded-2xl overflow-hidden">
       {/* Exercise header row */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+      <div className="flex items-center gap-2 px-3 py-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-white font-semibold text-base truncate">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-white font-semibold text-[15px] leading-tight truncate">
               {exercise.name}
             </span>
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${categoryColors[exercise.category]}`}
+              className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md ${CATEGORY_COLORS[exercise.category]}`}
             >
               {exercise.category}
             </span>
           </div>
           {sets.length > 0 && (
-            <p className="text-white/40 text-xs mt-0.5">
+            <p className="text-white/40 text-[11px] mt-1">
               {sets.length} set{sets.length !== 1 ? 's' : ''} logged
             </p>
           )}
         </div>
 
         {/* Scrubber + confirm */}
-        <div className="flex items-center gap-2 pb-4">
+        <div className="flex items-center gap-1.5 shrink-0">
           <NumberScrubber value={reps} onChange={setReps} />
           <button
             onClick={handleLog}

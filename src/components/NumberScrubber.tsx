@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 interface Props {
   value: number;
@@ -10,7 +10,7 @@ interface Props {
 export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
   const startX = useRef<number | null>(null);
   const startVal = useRef(value);
-  const isDragging = useRef(false);
+  const [dragging, setDragging] = useState(false);
 
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
 
@@ -19,7 +19,6 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
       e.currentTarget.setPointerCapture(e.pointerId);
       startX.current = e.clientX;
       startVal.current = value;
-      isDragging.current = false;
     },
     [value]
   );
@@ -28,7 +27,7 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (startX.current === null) return;
       const delta = e.clientX - startX.current;
-      if (Math.abs(delta) > 3) isDragging.current = true;
+      if (!dragging && Math.abs(delta) > 3) setDragging(true);
       const step = Math.round(delta / 8);
       const next = clamp(startVal.current + step);
       if (next !== value) {
@@ -37,20 +36,21 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value, onChange, min, max]
+    [value, onChange, min, max, dragging]
   );
 
   const onPointerUp = useCallback(() => {
     startX.current = null;
+    setDragging(false);
   }, []);
 
   return (
     <div
-      className="flex items-center gap-1 select-none"
+      className="flex items-center gap-0.5 select-none"
       style={{ touchAction: 'none' }}
     >
       <button
-        className="w-8 h-8 rounded-full flex items-center justify-center text-white/60
+        className="w-7 h-11 rounded-l-xl flex items-center justify-center text-white/50
                    hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors text-xl leading-none"
         onClick={() => onChange(clamp(value - 1))}
         aria-label="decrease"
@@ -58,9 +58,9 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
         −
       </button>
 
-      {/* Drag target */}
+      {/* Drag target — primary interaction */}
       <div
-        className="relative flex items-center justify-center cursor-ew-resize"
+        className="relative flex items-center justify-center cursor-ew-resize touch-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -72,21 +72,19 @@ export function NumberScrubber({ value, onChange, min = 1, max = 999 }: Props) {
         aria-valuemax={max}
       >
         <div
-          className="min-w-[3.5rem] h-11 rounded-xl bg-white/10 border border-white/15
-                     flex items-center justify-center px-3 transition-colors
-                     hover:bg-white/15 active:bg-white/20"
+          className={`min-w-[3rem] h-11 border-y flex items-center justify-center px-2 transition-colors
+                      ${dragging
+                        ? 'bg-[#007AFF]/25 border-[#007AFF]/50'
+                        : 'bg-white/10 border-white/15 hover:bg-white/15 active:bg-white/20'}`}
         >
-          <span className="text-2xl font-semibold tabular-nums text-white tracking-tight">
+          <span className="text-xl font-semibold tabular-nums text-white tracking-tight">
             {value}
           </span>
         </div>
-        <span className="absolute -bottom-4 text-[10px] text-white/30 font-medium tracking-wide">
-          REPS
-        </span>
       </div>
 
       <button
-        className="w-8 h-8 rounded-full flex items-center justify-center text-white/60
+        className="w-7 h-11 rounded-r-xl flex items-center justify-center text-white/50
                    hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors text-xl leading-none"
         onClick={() => onChange(clamp(value + 1))}
         aria-label="increase"

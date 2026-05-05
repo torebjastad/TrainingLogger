@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Plus, Star } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import type { Exercise } from '../types';
@@ -21,6 +21,14 @@ export function AddExerciseModal({ onClose }: Props) {
   const [newCat, setNewCat] = useState<Exercise['category']>('other');
   const [showNew, setShowNew] = useState(false);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const nonFavorites = exercises.filter((e) => !e.isFavorite);
 
   const handleAdd = () => {
@@ -35,6 +43,9 @@ export function AddExerciseModal({ onClose }: Props) {
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Manage exercises"
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-[#1c1c1e] rounded-t-3xl pt-5 pb-8 px-4 z-10 max-h-[80vh] overflow-y-auto">

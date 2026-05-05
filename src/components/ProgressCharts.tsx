@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -47,43 +48,52 @@ function StatCard({ label, value, sub, icon }: {
 }
 
 export function ProgressCharts() {
-  const { exercises, logs } = useStore();
-  const favorites = exercises.filter((e) => e.isFavorite);
+  const exercises = useStore((s) => s.exercises);
+  const logs = useStore((s) => s.logs);
+  const favorites = useMemo(() => exercises.filter((e) => e.isFavorite), [exercises]);
 
-  // Last 30 days volume per exercise
-  const last30 = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() });
+  const { perExerciseData, weeklyData, totalSets, trainingDays, maxReps } = useMemo(() => {
+    const now = new Date();
+    const last30 = eachDayOfInterval({ start: subDays(now, 29), end: now });
 
-  const perExerciseData = favorites.slice(0, 5).map((ex, i) => {
-    const exLogs = logs.filter((l) => l.exerciseId === ex.id);
-    const points = last30.map((day) => {
-      const key = format(day, 'yyyy-MM-dd');
-      const dayLog = exLogs.find((l) => l.date === key);
-      const totalReps = dayLog ? dayLog.sets.reduce((s, set) => s + set.reps, 0) : null;
-      return { date: format(day, 'MMM d'), reps: totalReps };
-    }).filter((p) => p.reps !== null);
-
-    return { exercise: ex, data: points, color: COLORS[i % COLORS.length] };
-  });
-
-  // Weekly sets bar chart — last 8 weeks, i=0 oldest, i=7 current
-  const weeklyData = Array.from({ length: 8 }, (_, i) => {
-    const weeksAgo = 7 - i;
-    const weekEnd = subDays(new Date(), weeksAgo * 7);
-    const weekStart = subDays(weekEnd, 6);
-    const label = format(weekStart, 'MMM d');
-    const weekLogs = logs.filter((l) => {
-      const d = parseISO(l.date);
-      return d >= weekStart && d <= weekEnd;
+    const perExerciseData = favorites.slice(0, 5).map((ex, i) => {
+      const exLogs = logs.filter((l) => l.exerciseId === ex.id);
+      const points = last30
+        .map((day) => {
+          const key = format(day, 'yyyy-MM-dd');
+          const dayLog = exLogs.find((l) => l.date === key);
+          const totalReps = dayLog
+            ? dayLog.sets.reduce((s, set) => s + set.reps, 0)
+            : null;
+          return { date: format(day, 'MMM d'), reps: totalReps };
+        })
+        .filter((p) => p.reps !== null);
+      return { exercise: ex, data: points, color: COLORS[i % COLORS.length] };
     });
-    const totalSets = weekLogs.reduce((s, l) => s + l.sets.length, 0);
-    return { week: label, sets: totalSets };
-  });
 
-  // Summary stats
-  const totalSets = logs.reduce((s, l) => s + l.sets.length, 0);
-  const trainingDays = new Set(logs.map((l) => l.date)).size;
-  const maxReps = logs.reduce((max, l) =>
-    Math.max(max, ...l.sets.map((s) => s.reps)), 0);
+    // Last 8 weeks, i=0 oldest, i=7 current
+    const weeklyData = Array.from({ length: 8 }, (_, i) => {
+      const weeksAgo = 7 - i;
+      const weekEnd = subDays(now, weeksAgo * 7);
+      const weekStart = subDays(weekEnd, 6);
+      const label = format(weekStart, 'MMM d');
+      const weekLogs = logs.filter((l) => {
+        const d = parseISO(l.date);
+        return d >= weekStart && d <= weekEnd;
+      });
+      const totalSetsInWeek = weekLogs.reduce((s, l) => s + l.sets.length, 0);
+      return { week: label, sets: totalSetsInWeek };
+    });
+
+    const totalSets = logs.reduce((s, l) => s + l.sets.length, 0);
+    const trainingDays = new Set(logs.map((l) => l.date)).size;
+    const maxReps = logs.reduce(
+      (max, l) => Math.max(max, ...l.sets.map((s) => s.reps)),
+      0
+    );
+
+    return { perExerciseData, weeklyData, totalSets, trainingDays, maxReps };
+  }, [favorites, logs]);
 
   const hasAnyData = logs.length > 0;
 
