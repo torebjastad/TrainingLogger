@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Check, X, Trash2 } from 'lucide-react';
 import { NumberScrubber } from './NumberScrubber';
 import { useStore } from '../store/useStore';
@@ -18,18 +18,37 @@ const CATEGORY_COLORS: Record<Exercise['category'], string> = {
   other: 'bg-white/10 text-white/50',
 };
 
+function median(reps: number[]): number {
+  const sorted = [...reps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+    : sorted[mid];
+}
+
 export function ExerciseCard({ exercise, dateKey, sets }: Props) {
   const logSet = useStore((s) => s.logSet);
   const updateSet = useStore((s) => s.updateSet);
   const removeSet = useStore((s) => s.removeSet);
-  const lastReps = sets.length > 0 ? sets[sets.length - 1].reps : exercise.defaultReps;
-  const [reps, setReps] = useState(lastReps);
+  const allLogs = useStore((s) => s.logs);
+
+  // When no sets logged today, seed the scrubber with the median from the
+  // most recent previous session — so consecutive days need minimal adjustment.
+  const seedReps = useMemo(() => {
+    if (sets.length > 0) return sets[sets.length - 1].reps;
+    const previous = allLogs
+      .filter((l) => l.exerciseId === exercise.id && l.date < dateKey && l.sets.length > 0)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    if (previous.length === 0) return exercise.defaultReps;
+    return median(previous[0].sets.map((s) => s.reps));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ^ intentionally runs only on mount; key={ex.id-dateKey} in App remounts on day change
+
+  const [reps, setReps] = useState(seedReps);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editReps, setEditReps] = useState(0);
 
-  const handleLog = () => {
-    logSet(dateKey, exercise.id, reps);
-  };
+  const handleLog = () => logSet(dateKey, exercise.id, reps);
 
   const startEdit = (setId: string, currentReps: number) => {
     setEditingId(setId);
@@ -40,8 +59,6 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
     updateSet(dateKey, exercise.id, setId, editReps);
     setEditingId(null);
   };
-
-  const cancelEdit = () => setEditingId(null);
 
   const clamp = (n: number) => Math.min(999, Math.max(1, n));
 
@@ -94,7 +111,6 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
               >
                 <span className="text-white/40 text-xs w-10 shrink-0">Set {i + 1}</span>
 
-                {/* Mini +/− controls */}
                 <div className="flex items-center gap-0.5 flex-1">
                   <button
                     onClick={() => setEditReps(clamp(editReps - 1))}
@@ -102,8 +118,7 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
                                hover:text-white flex items-center justify-center text-lg leading-none"
                     aria-label="decrease"
                   >−</button>
-                  <div className="h-7 px-3 bg-white/10 flex items-center justify-center
-                                  border-y border-white/10">
+                  <div className="h-7 px-3 bg-white/10 flex items-center justify-center border-y border-white/10">
                     <span className="text-white font-semibold text-sm tabular-nums">{editReps}</span>
                   </div>
                   <button
@@ -114,7 +129,6 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
                   >+</button>
                 </div>
 
-                {/* Save */}
                 <button
                   onClick={() => confirmEdit(set.id)}
                   className="w-8 h-8 rounded-full bg-[#30D158] flex items-center justify-center
@@ -124,7 +138,6 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
                   <Check size={15} strokeWidth={2.5} className="text-black" />
                 </button>
 
-                {/* Delete */}
                 <button
                   onClick={() => { removeSet(dateKey, exercise.id, set.id); setEditingId(null); }}
                   className="w-8 h-8 rounded-full bg-[#FF375F]/20 flex items-center justify-center
@@ -134,9 +147,8 @@ export function ExerciseCard({ exercise, dateKey, sets }: Props) {
                   <Trash2 size={14} className="text-[#FF375F]" />
                 </button>
 
-                {/* Cancel */}
                 <button
-                  onClick={cancelEdit}
+                  onClick={() => setEditingId(null)}
                   className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center
                              hover:bg-white/15 active:scale-95 transition-all"
                   aria-label="Cancel"

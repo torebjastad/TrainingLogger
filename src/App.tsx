@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Plus } from 'lucide-react';
 import { DayHeader } from './components/DayHeader';
 import { ExerciseCard } from './components/ExerciseCard';
@@ -22,31 +22,12 @@ export default function App() {
   const { exercises, getLogsForDate } = useStore();
   const { dateKey, displayDate, isCurrentDay, prev, next, goToday } = useDate();
 
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
-
   const favorites = exercises.filter((e) => e.isFavorite);
   const dayLogs = getLogsForDate(dateKey);
 
-  const switchTab = (next: Tab, dir: SlideDir) => {
-    setSlideDir(dir);
+  const switchTab = (next: Tab) => {
+    setSlideDir(next === 'progress' ? 'from-right' : 'from-left');
     setTab(next);
-  };
-
-  // Swipe on content area → switch tab
-  const onContentPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as Element).closest('[data-no-swipe]')) return;
-    swipeStart.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const onContentPointerUp = (e: React.PointerEvent) => {
-    if (!swipeStart.current) return;
-    const dx = e.clientX - swipeStart.current.x;
-    const dy = e.clientY - swipeStart.current.y;
-    swipeStart.current = null;
-    // Require horizontal dominance and minimum distance
-    if (Math.abs(dy) > Math.abs(dx) * 0.75 || Math.abs(dx) < 50) return;
-    if (dx < 0 && tab === 'workout') switchTab('progress', 'from-right');
-    if (dx > 0 && tab === 'progress') switchTab('workout', 'from-left');
   };
 
   const mainClass = `flex-1 overflow-y-auto pb-28 ${
@@ -81,9 +62,6 @@ export default function App() {
         {tab === 'workout' && (
           <main
             className={mainClass}
-            onPointerDown={onContentPointerDown}
-            onPointerUp={onContentPointerUp}
-            onPointerCancel={() => { swipeStart.current = null; }}
             onAnimationEnd={() => setSlideDir(null)}
           >
             {favorites.length === 0 ? (
@@ -133,9 +111,6 @@ export default function App() {
         {tab === 'progress' && (
           <main
             className={mainClass}
-            onPointerDown={onContentPointerDown}
-            onPointerUp={onContentPointerUp}
-            onPointerCancel={() => { swipeStart.current = null; }}
             onAnimationEnd={() => setSlideDir(null)}
           >
             <Suspense
@@ -151,7 +126,7 @@ export default function App() {
         )}
       </div>
 
-      <TabNav active={tab} onChange={(t) => switchTab(t, t === 'progress' ? 'from-right' : 'from-left')} />
+      <TabNav active={tab} onChange={switchTab} />
 
       {showModal && <AddExerciseModal onClose={() => setShowModal(false)} />}
     </div>
