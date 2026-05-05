@@ -32,6 +32,7 @@ interface Store {
   logSet: (date: string, exerciseId: string, reps: number) => void;
   updateSet: (date: string, exerciseId: string, setId: string, reps: number) => void;
   removeSet: (date: string, exerciseId: string, setId: string) => void;
+  deleteExerciseLogs: (exerciseId: string) => void;
   getLogsForDate: (date: string) => DayLog[];
 }
 
@@ -94,6 +95,11 @@ export const useStore = create<Store>()(
               ? { ...l, sets: l.sets.filter((set) => set.id !== setId) }
               : l
           ),
+        })),
+
+      deleteExerciseLogs: (exerciseId) =>
+        set((s) => ({
+          logs: s.logs.filter((l) => l.exerciseId !== exerciseId),
         })),
 
       updateSet: (date, exerciseId, setId, reps) =>
