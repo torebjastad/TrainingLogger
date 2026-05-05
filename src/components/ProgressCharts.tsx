@@ -42,7 +42,7 @@ export function ProgressCharts() {
   const logs = useStore((s) => s.logs);
   const favorites = useMemo(() => exercises.filter((e) => e.isFavorite), [exercises]);
 
-  const { perExerciseData, weeklyData } = useMemo(() => {
+  const { perExerciseData, weeklyData, activeFavorites } = useMemo(() => {
     const now = new Date();
     const last30 = eachDayOfInterval({ start: subDays(now, 29), end: now });
 
@@ -100,20 +100,25 @@ export function ProgressCharts() {
       };
     });
 
+    const activeFavorites = favorites.slice(0, 5);
     const weeklyData = Array.from({ length: 8 }, (_, i) => {
       const weeksAgo = 7 - i;
       const weekEnd = subDays(now, weeksAgo * 7);
       const weekStart = subDays(weekEnd, 6);
-      const label = format(weekStart, 'MMM d');
-      const weekLogs = logs.filter((l) => {
-        const d = parseISO(l.date);
-        return d >= weekStart && d <= weekEnd;
+      const point: Record<string, string | number> = { week: format(weekStart, 'MMM d') };
+      activeFavorites.forEach((ex) => {
+        point[ex.id] = logs
+          .filter((l) => {
+            if (l.exerciseId !== ex.id) return false;
+            const d = parseISO(l.date);
+            return d >= weekStart && d <= weekEnd;
+          })
+          .reduce((s, l) => s + l.sets.length, 0);
       });
-      const totalSetsInWeek = weekLogs.reduce((s, l) => s + l.sets.length, 0);
-      return { week: label, sets: totalSetsInWeek };
+      return point;
     });
 
-    return { perExerciseData, weeklyData };
+    return { perExerciseData, weeklyData, activeFavorites };
   }, [favorites, logs]);
 
   const hasAnyData = logs.length > 0;
@@ -139,11 +144,32 @@ export function ProgressCharts() {
               <BarChart data={weeklyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="week" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="sets" fill="#007AFF" radius={[4, 4, 0, 0]} />
+                {activeFavorites.map((ex, i) => (
+                  <Bar
+                    key={ex.id}
+                    dataKey={ex.id}
+                    name={ex.name}
+                    stackId="a"
+                    fill={COLORS[i % COLORS.length]}
+                    radius={i === activeFavorites.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                  />
+                ))}
               </BarChart>
             </ResponsiveContainer>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+              {activeFavorites.map((ex, i) => (
+                <span key={ex.id} className="flex items-center gap-1.5 text-[11px] text-white/50">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                    style={{ background: COLORS[i % COLORS.length] }}
+                  />
+                  {ex.name}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Per-exercise cards */}
