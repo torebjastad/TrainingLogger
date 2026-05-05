@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import { format, parseISO, eachDayOfInterval, subDays } from 'date-fns';
 import { useStore } from '../store/useStore';
-import { TrendingUp, Activity, Zap } from 'lucide-react';
 
 const COLORS = ['#007AFF', '#30D158', '#FF9F0A', '#BF5AF2', '#FF375F'];
 
@@ -30,21 +29,12 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   );
 }
 
-function StatCard({ label, value, sub, icon }: {
-  label: string; value: string | number; sub?: string; icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-[#1c1c1e] rounded-2xl p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div>
-        <p className="text-white font-bold text-xl leading-tight">{value}</p>
-        <p className="text-white/50 text-xs">{label}</p>
-        {sub && <p className="text-white/30 text-[11px]">{sub}</p>}
-      </div>
-    </div>
-  );
+function medianOf(reps: number[]): number {
+  const sorted = [...reps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10
+    : sorted[mid];
 }
 
 export function ProgressCharts() {
@@ -52,12 +42,15 @@ export function ProgressCharts() {
   const logs = useStore((s) => s.logs);
   const favorites = useMemo(() => exercises.filter((e) => e.isFavorite), [exercises]);
 
-  const { perExerciseData, weeklyData, totalSets, trainingDays, maxReps } = useMemo(() => {
+  const { perExerciseData, weeklyData } = useMemo(() => {
     const now = new Date();
     const last30 = eachDayOfInterval({ start: subDays(now, 29), end: now });
 
     const perExerciseData = favorites.slice(0, 5).map((ex, i) => {
-      const exLogs = logs.filter((l) => l.exerciseId === ex.id);
+      const exLogs = logs
+        .filter((l) => l.exerciseId === ex.id && l.sets.length > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
       const points = last30
         .map((day) => {
           const key = format(day, 'yyyy-MM-dd');
@@ -75,10 +68,38 @@ export function ProgressCharts() {
           return { date: format(day, 'MMM d'), median, max };
         })
         .filter((p): p is { date: string; median: number; max: number } => p !== null);
-      return { exercise: ex, data: points, color: COLORS[i % COLORS.length] };
+
+      const pb = exLogs.reduce(
+        (m, l) => Math.max(m, ...l.sets.map((s) => s.reps)),
+        0
+      );
+      const sessions = exLogs.length;
+      const recentMedian =
+        exLogs.length > 0 ? medianOf(exLogs[exLogs.length - 1].sets.map((s) => s.reps)) : 0;
+
+      let trend: '↑' | '→' | '↓' = '→';
+      if (exLogs.length >= 2) {
+        const recent3 = exLogs.slice(-3).map((l) => medianOf(l.sets.map((s) => s.reps)));
+        const prev3 = exLogs.slice(-6, -3).map((l) => medianOf(l.sets.map((s) => s.reps)));
+        const recentAvg = recent3.reduce((s, v) => s + v, 0) / recent3.length;
+        if (prev3.length > 0) {
+          const prevAvg = prev3.reduce((s, v) => s + v, 0) / prev3.length;
+          if (recentAvg > prevAvg * 1.03) trend = '↑';
+          else if (recentAvg < prevAvg * 0.97) trend = '↓';
+        }
+      }
+
+      return {
+        exercise: ex,
+        data: points,
+        color: COLORS[i % COLORS.length],
+        pb,
+        sessions,
+        recentMedian,
+        trend,
+      };
     });
 
-    // Last 8 weeks, i=0 oldest, i=7 current
     const weeklyData = Array.from({ length: 8 }, (_, i) => {
       const weeksAgo = 7 - i;
       const weekEnd = subDays(now, weeksAgo * 7);
@@ -92,40 +113,13 @@ export function ProgressCharts() {
       return { week: label, sets: totalSetsInWeek };
     });
 
-    const totalSets = logs.reduce((s, l) => s + l.sets.length, 0);
-    const trainingDays = new Set(logs.map((l) => l.date)).size;
-    const maxReps = logs.reduce(
-      (max, l) => Math.max(max, ...l.sets.map((s) => s.reps)),
-      0
-    );
-
-    return { perExerciseData, weeklyData, totalSets, trainingDays, maxReps };
+    return { perExerciseData, weeklyData };
   }, [favorites, logs]);
 
   const hasAnyData = logs.length > 0;
 
   return (
-    <div className="space-y-5 px-4 pb-8">
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-2 pt-2">
-        <StatCard
-          label="Total sets"
-          value={totalSets}
-          icon={<Activity size={18} className="text-[#007AFF]" />}
-        />
-        <StatCard
-          label="Training days"
-          value={trainingDays}
-          icon={<TrendingUp size={18} className="text-[#30D158]" />}
-        />
-        <StatCard
-          label="Best set"
-          value={maxReps > 0 ? `${maxReps}` : '—'}
-          sub="reps"
-          icon={<Zap size={18} className="text-[#FF9F0A]" />}
-        />
-      </div>
-
+    <div className="space-y-4 px-4 pb-8 pt-2">
       {!hasAnyData && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="text-4xl mb-3">📈</div>
@@ -138,7 +132,7 @@ export function ProgressCharts() {
 
       {hasAnyData && (
         <>
-          {/* Weekly volume bar chart */}
+          {/* Weekly volume */}
           <div className="bg-[#1c1c1e] rounded-2xl p-4">
             <p className="text-white font-semibold mb-4 text-sm">Sets per week</p>
             <ResponsiveContainer width="100%" height={160}>
@@ -152,52 +146,103 @@ export function ProgressCharts() {
             </ResponsiveContainer>
           </div>
 
-          {/* Per-exercise line charts */}
+          {/* Per-exercise cards */}
           {perExerciseData
-            .filter((d) => d.data.length > 1)
-            .map(({ exercise, data, color }) => (
+            .filter((d) => d.sessions > 0)
+            .map(({ exercise, data, color, pb, sessions, recentMedian, trend }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
+                {/* Title row */}
+                <div className="flex items-center justify-between mb-3">
                   <p className="text-white font-semibold text-sm">{exercise.name}</p>
-                  <div className="flex items-center gap-3 text-[11px]">
-                    <span className="flex items-center gap-1 text-white/50">
-                      <span className="inline-block w-4 h-0.5" style={{ background: color }} />
-                      Max
-                    </span>
-                    <span className="flex items-center gap-1 text-white/50">
-                      <span className="inline-block w-4 h-0.5 opacity-50" style={{ background: color }} />
-                      Median
-                    </span>
+                  {data.length > 1 && (
+                    <div className="flex items-center gap-3 text-[11px]">
+                      <span className="flex items-center gap-1 text-white/50">
+                        <span className="inline-block w-4 h-0.5" style={{ background: color }} />
+                        Max
+                      </span>
+                      <span className="flex items-center gap-1 text-white/50">
+                        <span className="inline-block w-4 h-0.5 opacity-50" style={{ background: color }} />
+                        Median
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stat strip */}
+                <div className="grid grid-cols-4 gap-1.5 mb-4">
+                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
+                    <p className="text-white font-bold text-base leading-tight">{pb || '—'}</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">PB</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
+                    <p className="text-white font-bold text-base leading-tight">
+                      {recentMedian || '—'}
+                    </p>
+                    <p className="text-white/40 text-[10px] mt-0.5">Now</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
+                    <p className="text-white font-bold text-base leading-tight">{sessions}</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">Sessions</p>
+                  </div>
+                  <div
+                    className={`rounded-xl px-2 py-2 text-center ${
+                      trend === '↑'
+                        ? 'bg-[#30D158]/15'
+                        : trend === '↓'
+                        ? 'bg-[#FF9F0A]/15'
+                        : 'bg-white/5'
+                    }`}
+                  >
+                    <p
+                      className={`font-bold text-base leading-tight ${
+                        trend === '↑'
+                          ? 'text-[#30D158]'
+                          : trend === '↓'
+                          ? 'text-[#FF9F0A]'
+                          : 'text-white/50'
+                      }`}
+                    >
+                      {trend}
+                    </p>
+                    <p className="text-white/40 text-[10px] mt-0.5">Trend</p>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={150}>
-                  <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                    <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="max"
-                      name="Max"
-                      stroke={color}
-                      strokeWidth={2}
-                      dot={{ fill: color, r: 3 }}
-                      activeDot={{ r: 5 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="median"
-                      name="Median"
-                      stroke={color}
-                      strokeWidth={1.5}
-                      strokeOpacity={0.5}
-                      strokeDasharray="5 3"
-                      dot={{ fill: color, r: 2, opacity: 0.5 }}
-                      activeDot={{ r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+
+                {/* Chart — only when 2+ data points */}
+                {data.length > 1 ? (
+                  <ResponsiveContainer width="100%" height={150}>
+                    <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="max"
+                        name="Max"
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ fill: color, r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="median"
+                        name="Median"
+                        stroke={color}
+                        strokeWidth={1.5}
+                        strokeOpacity={0.5}
+                        strokeDasharray="5 3"
+                        dot={{ fill: color, r: 2, opacity: 0.5 }}
+                        activeDot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-white/25 text-xs text-center py-4">
+                    Log at least 2 sessions to see the chart
+                  </p>
+                )}
               </div>
             ))}
         </>
