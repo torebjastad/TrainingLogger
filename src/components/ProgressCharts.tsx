@@ -4,9 +4,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
-import { format, parseISO, eachDayOfInterval, subDays } from 'date-fns';
+import { format, parseISO, eachDayOfInterval, subDays, addDays } from 'date-fns';
 import { useStore } from '../store/useStore';
-import { computeWeeklyStreak } from '../utils/streaks';
+import { computeWeeklyStreak, weekBounds } from '../utils/streaks';
 
 const COLORS = ['#007AFF', '#30D158', '#FF9F0A', '#BF5AF2', '#FF375F'];
 
@@ -107,10 +107,11 @@ export function ProgressCharts() {
     });
 
     const activeFavorites = favorites.slice(0, 5);
+    const thisWeek = weekBounds(now);
     const weeklyData = Array.from({ length: 8 }, (_, i) => {
       const weeksAgo = 7 - i;
-      const weekEnd = subDays(now, weeksAgo * 7);
-      const weekStart = subDays(weekEnd, 6);
+      const weekStart = subDays(thisWeek.start, weeksAgo * 7);
+      const weekEnd = addDays(weekStart, 6);
       const point: Record<string, string | number> = { week: format(weekStart, 'MMM d') };
       activeFavorites.forEach((ex) => {
         point[ex.id] = logs

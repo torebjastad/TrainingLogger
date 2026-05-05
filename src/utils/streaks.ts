@@ -1,13 +1,18 @@
 import { subDays, addDays, format } from 'date-fns';
 import type { DayLog } from '../types';
 
-function weekSetCount(now: Date, weeksBack: number, exerciseId: string, logs: DayLog[]): number {
-  const ref = subDays(now, weeksBack * 7);
+// Calendar week boundary (Mon-Sun) for the week containing `ref`.
+export function weekBounds(ref: Date): { start: Date; end: Date } {
   const daysFromMon = (ref.getDay() + 6) % 7;
-  const weekStart = subDays(ref, daysFromMon);
-  const weekEnd = addDays(weekStart, 6);
-  const startKey = format(weekStart, 'yyyy-MM-dd');
-  const endKey = format(weekEnd, 'yyyy-MM-dd');
+  const start = subDays(ref, daysFromMon);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
+function weekSetCount(now: Date, weeksBack: number, exerciseId: string, logs: DayLog[]): number {
+  const { start, end } = weekBounds(subDays(now, weeksBack * 7));
+  const startKey = format(start, 'yyyy-MM-dd');
+  const endKey = format(end, 'yyyy-MM-dd');
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.date >= startKey && l.date <= endKey)
     .reduce((s, l) => s + l.sets.length, 0);
