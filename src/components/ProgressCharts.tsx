@@ -38,6 +38,38 @@ function medianOf(reps: number[]): number {
     : sorted[mid];
 }
 
+// Linear-regression slope of `value` over time, expressed as reps/week.
+// Returns null when there aren't enough distinct points to fit a line.
+function slopePerWeek(points: { date: string; value: number }[]): number | null {
+  if (points.length < 2) return null;
+  const firstMs = parseISO(points[0].date).getTime();
+  const xs = points.map((p) => (parseISO(p.date).getTime() - firstMs) / 86_400_000);
+  const ys = points.map((p) => p.value);
+  const n = points.length;
+  const meanX = xs.reduce((a, b) => a + b, 0) / n;
+  const meanY = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - meanX) * (ys[i] - meanY);
+    den += (xs[i] - meanX) ** 2;
+  }
+  if (den === 0) return 0;
+  return (num / den) * 7;
+}
+
+function formatSlope(s: number | null): string {
+  if (s === null) return '—';
+  const r = Math.round(s * 10) / 10;
+  if (r === 0) return '0';
+  return r > 0 ? `+${r.toFixed(1)}` : r.toFixed(1);
+}
+
+function slopeTextClass(s: number | null): string {
+  if (s === null || Math.abs(s) < 0.05) return 'text-white/55';
+  return s > 0 ? 'text-[#30D158]' : 'text-[#FF9F0A]';
+}
+
 export function ProgressCharts() {
   const exercises = useStore((s) => s.exercises);
   const logs = useStore((s) => s.logs);
@@ -78,17 +110,20 @@ export function ProgressCharts() {
       const recentMedian =
         exLogs.length > 0 ? medianOf(exLogs[exLogs.length - 1].sets.map((s) => s.reps)) : 0;
 
-      let trend: '↑' | '→' | '↓' = '→';
-      if (exLogs.length >= 2) {
-        const recent3 = exLogs.slice(-3).map((l) => medianOf(l.sets.map((s) => s.reps)));
-        const prev3 = exLogs.slice(-6, -3).map((l) => medianOf(l.sets.map((s) => s.reps)));
-        const recentAvg = recent3.reduce((s, v) => s + v, 0) / recent3.length;
-        if (prev3.length > 0) {
-          const prevAvg = prev3.reduce((s, v) => s + v, 0) / prev3.length;
-          if (recentAvg > prevAvg * 1.03) trend = '↑';
-          else if (recentAvg < prevAvg * 0.97) trend = '↓';
-        }
-      }
+      const sessionPoints = exLogs.map((l) => {
+        const reps = l.sets.map((s) => s.reps);
+        return {
+          date: l.date,
+          max: Math.max(...reps),
+          median: medianOf(reps),
+        };
+      });
+      const maxSlope = slopePerWeek(
+        sessionPoints.map((p) => ({ date: p.date, value: p.max }))
+      );
+      const medianSlope = slopePerWeek(
+        sessionPoints.map((p) => ({ date: p.date, value: p.median }))
+      );
 
       const streak = ex.goals?.setsPerWeek
         ? computeWeeklyStreak(ex.id, ex.goals.setsPerWeek, logs)
@@ -101,7 +136,8 @@ export function ProgressCharts() {
         pb,
         sessions,
         recentMedian,
-        trend,
+        maxSlope,
+        medianSlope,
         streak,
       };
     });
@@ -182,7 +218,7 @@ export function ProgressCharts() {
           {/* Per-exercise cards */}
           {perExerciseData
             .filter((d) => d.sessions > 0)
-            .map(({ exercise, data, color, pb, sessions, recentMedian, trend, streak }) => (
+            .map(({ exercise, data, color, pb, sessions, recentMedian, maxSlope, medianSlope, streak }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-3">
@@ -228,28 +264,29 @@ export function ProgressCharts() {
                     <p className="text-white font-bold text-base leading-tight">{sessions}</p>
                     <p className="text-white/40 text-[10px] mt-0.5">Sessions</p>
                   </div>
-                  {/* Streak if goal set, else trend */}
-                  {exercise.goals?.setsPerWeek ? (
-                    <div className={`rounded-xl px-2 py-2 text-center ${streak > 0 ? 'bg-[#FF9F0A]/15' : 'bg-white/5'}`}>
-                      <p className={`font-bold text-base leading-tight ${streak > 0 ? 'text-[#FF9F0A]' : 'text-white/30'}`}>
-                        {streak > 0 ? streak : '—'}
-                      </p>
-                      <p className="text-white/40 text-[10px] mt-0.5">Streak</p>
-                    </div>
-                  ) : (
-                    <div
-                      className={`rounded-xl px-2 py-2 text-center ${
-                        trend === '↑' ? 'bg-[#30D158]/15' : trend === '↓' ? 'bg-[#FF9F0A]/15' : 'bg-white/5'
-                      }`}
-                    >
-                      <p className={`font-bold text-base leading-tight ${
-                        trend === '↑' ? 'text-[#30D158]' : trend === '↓' ? 'text-[#FF9F0A]' : 'text-white/50'
-                      }`}>
-                        {trend}
-                      </p>
-                      <p className="text-white/40 text-[10px] mt-0.5">Trend</p>
-                    </div>
-                  )}
+                  {/* Trend: max & median rep change per week */}
+                  <div
+                    className={`rounded-xl px-1.5 py-2 text-center ${
+                      maxSlope !== null && maxSlope > 0.1
+                        ? 'bg-[#30D158]/10'
+                        : maxSlope !== null && maxSlope < -0.1
+                          ? 'bg-[#FF9F0A]/10'
+                          : 'bg-white/5'
+                    }`}
+                  >
+                    <p className="leading-tight">
+                      <span className={`font-bold text-sm ${slopeTextClass(maxSlope)}`}>
+                        {formatSlope(maxSlope)}
+                      </span>
+                      <span className="text-white/40 text-[9px] ml-1">max/wk</span>
+                    </p>
+                    <p className="leading-tight mt-1">
+                      <span className={`font-bold text-sm ${slopeTextClass(medianSlope)}`}>
+                        {formatSlope(medianSlope)}
+                      </span>
+                      <span className="text-white/40 text-[9px] ml-1">med/wk</span>
+                    </p>
+                  </div>
                 </div>
 
                 {/* Chart — only when 2+ data points */}
