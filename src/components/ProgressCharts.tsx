@@ -258,13 +258,7 @@ export function ProgressCharts() {
                 <div className="grid grid-cols-4 gap-1.5 mb-4">
                   <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
                     <p className="text-white font-bold text-base leading-tight">{pb || '—'}</p>
-                    <p className="text-white/40 text-[10px] mt-0.5">PB</p>
-                  </div>
-                  <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
-                    <p className="text-white font-bold text-base leading-tight">
-                      {recentMedian || '—'}
-                    </p>
-                    <p className="text-white/40 text-[10px] mt-0.5">Med</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">PB Max</p>
                   </div>
                   <div className={`rounded-xl px-1.5 py-2 flex flex-col items-center justify-center text-center ${
                     maxSlope !== null && maxSlope > 0.1 ? 'bg-[#30D158]/10'
@@ -275,6 +269,12 @@ export function ProgressCharts() {
                       {formatSlope(maxSlope)}
                     </p>
                     <p className="text-white/40 text-[10px] mt-0.5">max/wk</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
+                    <p className="text-white font-bold text-base leading-tight">
+                      {recentMedian || '—'}
+                    </p>
+                    <p className="text-white/40 text-[10px] mt-0.5">Med</p>
                   </div>
                   <div className={`rounded-xl px-1.5 py-2 flex flex-col items-center justify-center text-center ${
                     medianSlope !== null && medianSlope > 0.1 ? 'bg-[#30D158]/10'
