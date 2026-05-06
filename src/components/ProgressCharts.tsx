@@ -30,12 +30,10 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   );
 }
 
-function medianOf(reps: number[]): number {
-  const sorted = [...reps].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10
-    : sorted[mid];
+function meanTop3(reps: number[]): number | null {
+  if (reps.length < 3) return null;
+  const top3 = [...reps].sort((a, b) => b - a).slice(0, 3);
+  return Math.round((top3.reduce((a, b) => a + b, 0) / 3) * 10) / 10;
 }
 
 // Linear-regression slope of `value` over time, expressed as reps/week.
@@ -89,40 +87,35 @@ export function ProgressCharts() {
           const key = format(day, 'yyyy-MM-dd');
           const dayLog = exLogs.find((l) => l.date === key);
           if (!dayLog || dayLog.sets.length === 0) return null;
-
-          const sorted = [...dayLog.sets.map((s) => s.reps)].sort((a, b) => a - b);
-          const mid = Math.floor(sorted.length / 2);
-          const median =
-            sorted.length % 2 === 0
-              ? Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10
-              : sorted[mid];
-          const max = sorted[sorted.length - 1];
-
-          return { date: format(day, 'MMM d'), median, max };
+          const reps = dayLog.sets.map((s) => s.reps);
+          const max = Math.max(...reps);
+          const mean = meanTop3(reps) ?? undefined;
+          return { date: format(day, 'MMM d'), max, mean };
         })
-        .filter((p): p is { date: string; median: number; max: number } => p !== null);
+        .filter((p): p is { date: string; max: number; mean?: number } => p !== null);
 
       const pb = exLogs.reduce(
         (m, l) => Math.max(m, ...l.sets.map((s) => s.reps)),
         0
       );
       const sessions = exLogs.length;
-      const recentMedian =
-        exLogs.length > 0 ? medianOf(exLogs[exLogs.length - 1].sets.map((s) => s.reps)) : 0;
 
       const sessionPoints = exLogs.map((l) => {
         const reps = l.sets.map((s) => s.reps);
-        return {
-          date: l.date,
-          max: Math.max(...reps),
-          median: medianOf(reps),
-        };
+        return { date: l.date, max: Math.max(...reps), mean: meanTop3(reps) };
       });
+
+      const pbMean = sessionPoints.reduce(
+        (best, p) => (p.mean !== null ? Math.max(best, p.mean) : best),
+        0
+      );
       const maxSlope = slopePerWeek(
         sessionPoints.map((p) => ({ date: p.date, value: p.max }))
       );
-      const medianSlope = slopePerWeek(
-        sessionPoints.map((p) => ({ date: p.date, value: p.median }))
+      const meanSlope = slopePerWeek(
+        sessionPoints
+          .filter((p) => p.mean !== null)
+          .map((p) => ({ date: p.date, value: p.mean! }))
       );
 
       const streak = ex.goals?.setsPerWeek
@@ -135,9 +128,9 @@ export function ProgressCharts() {
         color: COLORS[i % COLORS.length],
         pb,
         sessions,
-        recentMedian,
+        pbMean,
         maxSlope,
-        medianSlope,
+        meanSlope,
         streak,
       };
     });
@@ -218,7 +211,7 @@ export function ProgressCharts() {
           {/* Per-exercise cards */}
           {perExerciseData
             .filter((d) => d.sessions > 0)
-            .map(({ exercise, data, color, pb, recentMedian, maxSlope, medianSlope, streak }) => (
+            .map(({ exercise, data, color, pb, pbMean, maxSlope, meanSlope, streak }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-3">
@@ -238,9 +231,9 @@ export function ProgressCharts() {
                       </span>
                       <span className="flex items-center gap-1 text-white/50">
                         <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
-                          <line x1="0" y1="2" x2="16" y2="2" stroke={color} strokeWidth={1.5} strokeDasharray="5 3" strokeOpacity={0.5} />
+                          <line x1="0" y1="2" x2="16" y2="2" stroke={color} strokeWidth={1.5} strokeOpacity={0.5} />
                         </svg>
-                        Median
+                        Mean
                       </span>
                       {exercise.goals?.maxReps && (
                         <span className="flex items-center gap-1 text-white/50">
@@ -272,19 +265,19 @@ export function ProgressCharts() {
                   </div>
                   <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
                     <p className="text-white font-bold text-base leading-tight">
-                      {recentMedian || '—'}
+                      {pbMean || '—'}
                     </p>
-                    <p className="text-white/40 text-[10px] mt-0.5">Med</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">PB Mean</p>
                   </div>
                   <div className={`rounded-xl px-1.5 py-2 flex flex-col items-center justify-center text-center ${
-                    medianSlope !== null && medianSlope > 0.1 ? 'bg-[#30D158]/10'
-                    : medianSlope !== null && medianSlope < -0.1 ? 'bg-[#FF9F0A]/10'
+                    meanSlope !== null && meanSlope > 0.1 ? 'bg-[#30D158]/10'
+                    : meanSlope !== null && meanSlope < -0.1 ? 'bg-[#FF9F0A]/10'
                     : 'bg-white/5'
                   }`}>
-                    <p className={`font-bold text-base leading-tight ${slopeTextClass(medianSlope)}`}>
-                      {formatSlope(medianSlope)}
+                    <p className={`font-bold text-base leading-tight ${slopeTextClass(meanSlope)}`}>
+                      {formatSlope(meanSlope)}
                     </p>
-                    <p className="text-white/40 text-[10px] mt-0.5">med/wk</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">mean/wk</p>
                   </div>
                 </div>
 
@@ -298,7 +291,7 @@ export function ProgressCharts() {
                         tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
                         domain={exercise.goals?.maxReps
                           ? [0, Math.ceil(Math.max(
-                              ...data.flatMap((d) => [d.max, d.median]),
+                              ...data.flatMap((d) => [d.max, d.mean ?? 0]),
                               exercise.goals.maxReps * 1.15
                             ))]
                           : [0, 'auto']}
@@ -324,12 +317,12 @@ export function ProgressCharts() {
                       />
                       <Line
                         type="monotone"
-                        dataKey="median"
-                        name="Median"
+                        dataKey="mean"
+                        name="Mean"
                         stroke={color}
                         strokeWidth={1.5}
                         strokeOpacity={0.5}
-                        strokeDasharray="5 3"
+                        connectNulls={false}
                         dot={{ fill: color, r: 2, opacity: 0.5 }}
                         activeDot={{ r: 4 }}
                       />
