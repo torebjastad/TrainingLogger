@@ -231,16 +231,22 @@ export function ProgressCharts() {
                   {data.length > 1 && (
                     <div className="flex items-center gap-3 text-[11px]">
                       <span className="flex items-center gap-1 text-white/50">
-                        <span className="inline-block w-4 h-0.5" style={{ background: color }} />
+                        <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                          <line x1="0" y1="2" x2="16" y2="2" stroke={color} strokeWidth={2} />
+                        </svg>
                         Max
                       </span>
                       <span className="flex items-center gap-1 text-white/50">
-                        <span className="inline-block w-4 h-0.5 opacity-50" style={{ background: color }} />
+                        <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                          <line x1="0" y1="2" x2="16" y2="2" stroke={color} strokeWidth={1.5} strokeDasharray="5 3" strokeOpacity={0.5} />
+                        </svg>
                         Median
                       </span>
                       {exercise.goals?.maxReps && (
                         <span className="flex items-center gap-1 text-white/50">
-                          <span className="inline-block w-4 h-0.5" style={{ background: '#FFD60A' }} />
+                          <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                            <line x1="0" y1="2" x2="16" y2="2" stroke="#FFD60A" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.8} />
+                          </svg>
                           Goal
                         </span>
                       )}
@@ -250,42 +256,35 @@ export function ProgressCharts() {
 
                 {/* Stat strip */}
                 <div className="grid grid-cols-4 gap-1.5 mb-4">
-                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
+                  <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
                     <p className="text-white font-bold text-base leading-tight">{pb || '—'}</p>
                     <p className="text-white/40 text-[10px] mt-0.5">PB</p>
                   </div>
-                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
+                  <div className="bg-white/5 rounded-xl px-2 py-2 flex flex-col items-center justify-center text-center">
                     <p className="text-white font-bold text-base leading-tight">
                       {recentMedian || '—'}
                     </p>
-                    <p className="text-white/40 text-[10px] mt-0.5">Now</p>
+                    <p className="text-white/40 text-[10px] mt-0.5">Med</p>
                   </div>
-                  <div className="bg-white/5 rounded-xl px-2 py-2 text-center">
-                    <p className="text-white font-bold text-base leading-tight">{sessions}</p>
-                    <p className="text-white/40 text-[10px] mt-0.5">Sessions</p>
+                  <div className={`rounded-xl px-1.5 py-2 flex flex-col items-center justify-center text-center ${
+                    maxSlope !== null && maxSlope > 0.1 ? 'bg-[#30D158]/10'
+                    : maxSlope !== null && maxSlope < -0.1 ? 'bg-[#FF9F0A]/10'
+                    : 'bg-white/5'
+                  }`}>
+                    <p className={`font-bold text-base leading-tight ${slopeTextClass(maxSlope)}`}>
+                      {formatSlope(maxSlope)}
+                    </p>
+                    <p className="text-white/40 text-[10px] mt-0.5">max/wk</p>
                   </div>
-                  {/* Trend: max & median rep change per week */}
-                  <div
-                    className={`rounded-xl px-1.5 py-2 text-center ${
-                      maxSlope !== null && maxSlope > 0.1
-                        ? 'bg-[#30D158]/10'
-                        : maxSlope !== null && maxSlope < -0.1
-                          ? 'bg-[#FF9F0A]/10'
-                          : 'bg-white/5'
-                    }`}
-                  >
-                    <p className="leading-tight">
-                      <span className={`font-bold text-sm ${slopeTextClass(maxSlope)}`}>
-                        {formatSlope(maxSlope)}
-                      </span>
-                      <span className="text-white/40 text-[9px] ml-1">max/wk</span>
+                  <div className={`rounded-xl px-1.5 py-2 flex flex-col items-center justify-center text-center ${
+                    medianSlope !== null && medianSlope > 0.1 ? 'bg-[#30D158]/10'
+                    : medianSlope !== null && medianSlope < -0.1 ? 'bg-[#FF9F0A]/10'
+                    : 'bg-white/5'
+                  }`}>
+                    <p className={`font-bold text-base leading-tight ${slopeTextClass(medianSlope)}`}>
+                      {formatSlope(medianSlope)}
                     </p>
-                    <p className="leading-tight mt-1">
-                      <span className={`font-bold text-sm ${slopeTextClass(medianSlope)}`}>
-                        {formatSlope(medianSlope)}
-                      </span>
-                      <span className="text-white/40 text-[9px] ml-1">med/wk</span>
-                    </p>
+                    <p className="text-white/40 text-[10px] mt-0.5">med/wk</p>
                   </div>
                 </div>
 
