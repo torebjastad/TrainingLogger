@@ -8,7 +8,7 @@ interface Props {
 
 export function GoalSplash({ exerciseName, streak, onDismiss }: Props) {
   useEffect(() => {
-    const t = setTimeout(onDismiss, 2500);
+    const t = setTimeout(onDismiss, 4500);
     return () => clearTimeout(t);
   }, [onDismiss]);
 
