@@ -218,7 +218,7 @@ export function ProgressCharts() {
           {/* Per-exercise cards */}
           {perExerciseData
             .filter((d) => d.sessions > 0)
-            .map(({ exercise, data, color, pb, sessions, recentMedian, maxSlope, medianSlope, streak }) => (
+            .map(({ exercise, data, color, pb, recentMedian, maxSlope, medianSlope, streak }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-3">
