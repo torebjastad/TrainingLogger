@@ -92,7 +92,7 @@ export function ProgressCharts() {
           const mean = meanTop3(reps) ?? undefined;
           return { date: format(day, 'MMM d'), max, mean };
         })
-        .filter((p): p is { date: string; max: number; mean?: number } => p !== null);
+        .filter((p): p is { date: string; max: number; mean: number | undefined } => p !== null);
 
       const pb = exLogs.reduce(
         (m, l) => Math.max(m, ...l.sets.map((s) => s.reps)),
