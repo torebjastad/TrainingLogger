@@ -141,14 +141,12 @@ export function ProgressCharts() {
       const weeksAgo = 7 - i;
       const weekStart = subDays(thisWeek.start, weeksAgo * 7);
       const weekEnd = addDays(weekStart, 6);
+      const startKey = format(weekStart, 'yyyy-MM-dd');
+      const endKey = format(weekEnd, 'yyyy-MM-dd');
       const point: Record<string, string | number> = { week: format(weekStart, 'MMM d') };
       activeFavorites.forEach((ex) => {
         point[ex.id] = logs
-          .filter((l) => {
-            if (l.exerciseId !== ex.id) return false;
-            const d = parseISO(l.date);
-            return d >= weekStart && d <= weekEnd;
-          })
+          .filter((l) => l.exerciseId === ex.id && l.date >= startKey && l.date <= endKey)
           .reduce((s, l) => s + l.sets.length, 0);
       });
       return point;
