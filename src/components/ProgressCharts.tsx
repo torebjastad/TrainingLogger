@@ -122,6 +122,17 @@ export function ProgressCharts() {
         ? computeWeeklyStreak(ex.id, ex.goals.setsPerWeek, logs)
         : 0;
 
+      // Y-axis bounds: data min/max with a small margin so the line never
+      // touches the edges. Goal line is intentionally NOT included — it can
+      // sit off-chart if it's far above current data.
+      const chartValues = points.flatMap((p) =>
+        p.mean !== undefined ? [p.max, p.mean] : [p.max]
+      );
+      const yMin = chartValues.length > 0 ? Math.min(...chartValues) : 0;
+      const yMax = chartValues.length > 0 ? Math.max(...chartValues) : 0;
+      const yPad = Math.max(1, Math.ceil((yMax - yMin) * 0.15));
+      const yDomain: [number, number] = [Math.max(0, yMin - yPad), yMax + yPad];
+
       return {
         exercise: ex,
         data: points,
@@ -132,6 +143,7 @@ export function ProgressCharts() {
         maxSlope,
         meanSlope,
         streak,
+        yDomain,
       };
     });
 
@@ -209,7 +221,7 @@ export function ProgressCharts() {
           {/* Per-exercise cards */}
           {perExerciseData
             .filter((d) => d.sessions > 0)
-            .map(({ exercise, data, color, pb, pbMean, maxSlope, meanSlope, streak }) => (
+            .map(({ exercise, data, color, pb, pbMean, maxSlope, meanSlope, streak, yDomain }) => (
               <div key={exercise.id} className="bg-[#1c1c1e] rounded-2xl p-4">
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-3">
@@ -234,11 +246,11 @@ export function ProgressCharts() {
                         Mean
                       </span>
                       {exercise.goals?.maxReps && (
-                        <span className="flex items-center gap-1 text-white/50">
+                        <span className="flex items-center gap-1 text-[#FFD60A]/80">
                           <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
                             <line x1="0" y1="2" x2="16" y2="2" stroke="#FFD60A" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.8} />
                           </svg>
-                          Goal
+                          Goal {exercise.goals.maxReps}
                         </span>
                       )}
                     </div>
@@ -287,12 +299,8 @@ export function ProgressCharts() {
                       <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                       <YAxis
                         tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
-                        domain={exercise.goals?.maxReps
-                          ? [0, Math.ceil(Math.max(
-                              ...data.flatMap((d) => [d.max, d.mean ?? 0]),
-                              exercise.goals.maxReps * 1.15
-                            ))]
-                          : [0, 'auto']}
+                        domain={yDomain}
+                        allowDecimals={false}
                       />
                       <Tooltip content={<CustomTooltip />} />
                       {exercise.goals?.maxReps && (
